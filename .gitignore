@@ -1,0 +1,24 @@
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+
+# Ignore environment folders
+env/
+venv/
+
+# Ignore database files
+*.sqlite3
+
+# Ignore media/uploads
+media/
+uploads/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Node.js modules
+node_modules/
+
+# Ignore log files
+*.log
