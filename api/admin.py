@@ -1,5 +1,25 @@
 from django.contrib import admin
 from .models import UploadedFile
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser
+
+# Customize the admin for your CustomUser model if needed
+@admin.register(CustomUser)
+class CustomUserAdmin(UserAdmin):
+    # Define the fields to display in the admin
+    model = CustomUser
+    list_display = ('username','email', 'is_superuser', 'is_super_admin','is_staff')
+    fieldsets = (
+        (None, {'fields': ('email', 'password')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_super_admin')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'password1', 'password2', 'is_staff', 'is_superuser'),
+        }),
+    )
 
 @admin.register(UploadedFile)
 class UploadedFileAdmin(admin.ModelAdmin):

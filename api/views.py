@@ -1,21 +1,74 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth.models import User
 from .serializers import RegisterSerializer, FileSerializer
 from django.conf import settings
 from .tokens import generate_confirmation_token  # You'd create this token generator
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.http import JsonResponse
-from .models import UploadedFile
+from .models import UploadedFile, CustomUser
 from rest_framework.permissions import IsAuthenticated  
 from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
+from rest_framework.permissions import BasePermission
 
+## Permission check for super admin users
+class IsSuperAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and getattr(request.user, 'is_super_admin', False)
+
+## Login for super admin access
+class SuperAdminLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        ## Check if user is authenticated
+        user = authenticate(username=email, password=password)
+        print("User object:", user)
+        
+        ## Check if user is a super admin user
+        if user and user.is_super_admin:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'message': 'Login successful'
+            }, status=200)
+
+        return Response({'error': 'Invalid credentials or not a Super Admin'}, status=401)
+
+## View for updating file status
+class UpdateFileStatusView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            uploaded_file = UploadedFile.objects.get(pk=pk)
+            status = request.data.get("status")
+            if status in dict(UploadedFile.STATUS_CHOICES).keys():
+                uploaded_file.status = status
+                uploaded_file.save()
+                return Response({"message": "Status updated successfully"}, status=200)
+            else:
+                return Response({"error": "Invalid status value"}, status=400)
+        except UploadedFile.DoesNotExist:
+            return Response({"error": "File not found"}, status=404)
+
+## Super Admin file list view
+class AdminFileListView(ListAPIView):
+    permission_classes = [IsSuperAdmin]
+    queryset = UploadedFile.objects.all()
+    serializer_class = FileSerializer
+    
+### Login for user
 class CustomTokenObtainPairView(TokenObtainPairView):
 
     def post(self, request, *args, **kwargs):
@@ -23,17 +76,20 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         password = request.data.get("password")
         
         if email and password:
-            # Authenticate user with email and password
-            user = authenticate(request, username=email, password=password)
-            
-            if user is not None:
-                # If authentication is successful, generate JWT tokens
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                })
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            # Use CustomUser model to authenticate by email
+            try:
+                user = CustomUser.objects.get(email=email)
+                if user.check_password(password):
+                    # If the password is correct, generate JWT tokens
+                    refresh = RefreshToken.for_user(user)
+                    return Response({
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                    })
+                else:
+                    return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            except CustomUser.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
         else:
             return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -56,22 +112,8 @@ class UserFileListView(APIView):
         serializer = FileSerializer(files, many=True)
         return Response(serializer.data)
 
-class UpdateFileStatusView(APIView):
-    permission_classes = [IsAuthenticated]
+## Function for updting file status
 
-    def patch(self, request, pk):
-        try:
-            file = UploadedFile.objects.get(pk=pk, user=request.user)
-        except UploadedFile.DoesNotExist:
-            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        new_status = request.data.get("status")
-        if new_status not in ["Pending", "In Progress", "Completed"]:
-            return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
-
-        file.status = new_status
-        file.save()
-        return Response({"message": "Status updated successfully.", "file": FileSerializer(file).data})
     
 # Function for uploading files
 class FileUploadView(APIView):

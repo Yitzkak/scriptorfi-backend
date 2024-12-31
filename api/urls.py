@@ -1,9 +1,12 @@
 from django.urls import path
 from api.views import RegisterView, CustomTokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
-from .views import UserFileListView, UpdateFileStatusView, FileUploadView, DeleteFileStatusView
+from .views import UserFileListView, UpdateFileStatusView, FileUploadView, DeleteFileStatusView, SuperAdminLoginView, AdminFileListView
 
 urlpatterns = [
+    path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
+    path('superadmin/files/', AdminFileListView.as_view(), name='superadmin_file_list'),
+    path('superadmin/files/<int:pk>/status', UpdateFileStatusView.as_view(), name='update_file_status'),
     path('users/register/', RegisterView.as_view(), name='register'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # Custom login
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
