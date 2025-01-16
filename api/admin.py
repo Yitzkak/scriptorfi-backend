@@ -1,16 +1,15 @@
 from django.contrib import admin
-from .models import UploadedFile
+from .models import UploadedFile, CustomUser, Notification
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser
 
 # Customize the admin for your CustomUser model if needed
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     # Define the fields to display in the admin
     model = CustomUser
-    list_display = ('username','email', 'is_superuser', 'is_super_admin','is_staff')
+    list_display = ('username','email', 'is_superuser', 'is_super_admin','is_staff', 'first_name', 'last_name', 'country')
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
+        (None, {'fields': ('email', 'password', 'first_name', 'last_name', 'country')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_super_admin')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -24,7 +23,7 @@ class CustomUserAdmin(UserAdmin):
 @admin.register(UploadedFile)
 class UploadedFileAdmin(admin.ModelAdmin):
     # Fields to display as columns
-    list_display = ('id', 'name', 'size', 'date_uploaded', 'status', 'user')
+    list_display = ('id', 'name', 'size', 'date_uploaded', 'status', 'user', 'total_cost', 'verbatim', 'timestamp', 'spelling', 'rush_order', 'additional_info')
 
     # Fields that are clickable to view record details
     list_display_links = ('id', 'name')
@@ -40,3 +39,7 @@ class UploadedFileAdmin(admin.ModelAdmin):
 
     # Add pagination (optional, Django provides it by default with 100 per page)
     list_per_page = 50  # Adjust the number of items per page
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'message', 'created_at', 'read')

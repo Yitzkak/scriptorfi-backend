@@ -1,8 +1,10 @@
+import uuid
 from rest_framework import serializers
 from .models import UploadedFile
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from .models import Notification
 
 CustomUser = get_user_model()  # This will use the CustomUser model
 
@@ -10,7 +12,7 @@ CustomUser = get_user_model()  # This will use the CustomUser model
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'username']
+        fields = ['id', 'email', 'username' ]
 
 ## Register user serilizer
 class RegisterSerializer(serializers.ModelSerializer):
@@ -19,7 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'password', 'confirm_password']
+        fields = ['first_name', 'last_name', 'email', 'country', 'password', 'confirm_password']
 
     def validate(self, data):
         # Check if passwords match
@@ -37,22 +39,48 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data.pop('confirm_password')
         
         # Create username from email (or handle unique username generation)
-        username = validated_data.get('email', '').split('@')[0]
+        username = f"user_{uuid.uuid4().hex[:8]}"  # e.g., "user_1234abcd"
         
         if CustomUser.objects.filter(username=username).exists():
             raise ValidationError({"username": "Username already exists."})
         
-        # Create user with hashed password
+        # Create user
         user = CustomUser.objects.create_user(
             username=username,
             email=validated_data['email'],
-            password=validated_data['password']
+            password=validated_data['password'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            country=validated_data['country']
         )
         return user
 
 ## Uploaded files  Serializer 
 class FileSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer();
+    user = CustomUserSerializer(read_only=True);
+    total_cost = serializers.IntegerField()
     class Meta:
         model = UploadedFile
-        fields = ["id", "name", "size", "file", "date_uploaded", "status", "user"]
+        fields = ["id", "name", "size", "file", "date_uploaded", "status", "user", "total_cost", "verbatim", "rush_order", "timestamp", "spelling", "additional_info"]
+        
+## Notifications Serializer
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'user', 'message', 'created_at', 'read']
+
+## Update User Serializer
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['email', 'country', 'first_name', 'last_name']
+
+class UpdatePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+    
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({"password": "Passwords do not match."})
+        return data
