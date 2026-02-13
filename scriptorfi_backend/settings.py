@@ -12,9 +12,28 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_env_file(path):
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
@@ -24,17 +43,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-ec%gldva9g(qc89^*!-d#geqq5pbj*1!b=2c@)%)badc9!$!x9"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 AUTH_USER_MODEL = 'api.CustomUser'
 
 
 ALLOWED_HOSTS = [
-    "http://localhost:3000",
-    "scriptorfi.vercel.app",
     "127.0.0.1",
     "localhost",
 ]
+allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
+if allowed_hosts_env:
+    ALLOWED_HOSTS += [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 
 # Application definition
 INSTALLED_APPS = [
@@ -52,9 +72,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -67,9 +88,17 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Your React frontend
     "http://127.0.0.1:3000",
 ]
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_env:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+
+CSRF_TRUSTED_ORIGINS = []
+csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if csrf_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_env.split(",") if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -117,6 +146,9 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    DATABASES["default"] = dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)
 
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
@@ -155,6 +187,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -165,3 +199,43 @@ AUTHENTICATION_BACKENDS = (
     'api.authentication.EmailBackend',  # Add your custom backend here
     'django.contrib.auth.backends.ModelBackend',  # Keep the default backend as a fallback
 )
+
+# PayPal Configuration
+PAYPAL_MODE = 'sandbox'  # Change to 'live' for production
+# Get your credentials from: https://developer.paypal.com/dashboard/applications/sandbox
+PAYPAL_CLIENT_ID = 'YOUR_SANDBOX_CLIENT_ID_HERE'  # Replace with your actual Sandbox Client ID
+PAYPAL_CLIENT_SECRET = 'YOUR_SANDBOX_CLIENT_SECRET_HERE'  # Replace with your actual Sandbox Secret
+PAYPAL_WEBHOOK_ID = os.getenv('PAYPAL_WEBHOOK_ID', '')
+
+# Paystack Configuration
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '')
+PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY', '')
+
+# Transcription pricing
+TRANSCRIPTION_PRICE_PER_MINUTE = os.getenv("TRANSCRIPTION_PRICE_PER_MINUTE", "0.50")
+FREE_TRIAL_SECONDS = int(os.getenv("FREE_TRIAL_SECONDS", "300"))
+
+# Upload validation
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "200"))
+ALLOWED_UPLOAD_MIME_TYPES = [
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/aac",
+    "audio/ogg",
+]
+
+# Email configuration
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "premium339.web-hosting.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "465"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "support@scriptorfi.com")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "false").lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "true").lower() == "true"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "support@scriptorfi.com")
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@scriptorfi.com")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")

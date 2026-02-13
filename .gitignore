@@ -5,6 +5,8 @@ __pycache__/
 # Ignore environment folders
 env/
 venv/
+.venv/
+.env
 
 
 # Ignore database files

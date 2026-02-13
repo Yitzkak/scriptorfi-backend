@@ -1,6 +1,6 @@
 import uuid
 from rest_framework import serializers
-from .models import UploadedFile
+from .models import UploadedFile, Transcript
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -57,11 +57,24 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 ## Uploaded files  Serializer 
 class FileSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer(read_only=True);
-    total_cost = serializers.IntegerField()
+    user = CustomUserSerializer(read_only=True)
+    total_cost = serializers.DecimalField(max_digits=10, decimal_places=2)
+    transcript = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = UploadedFile
-        fields = ["id", "name", "size", "file", "date_uploaded", "status", "user", "total_cost", "verbatim", "rush_order", "timestamp", "spelling", "additional_info"]
+        fields = ["id", "name", "size", "file", "date_uploaded", "status", "payment_status", "user", "total_cost", "verbatim", "rush_order", "timestamp", "spelling", "additional_info", "transcript"]
+
+    def get_transcript(self, obj):
+        transcript = getattr(obj, "transcript", None)
+        if not transcript:
+            return None
+        return TranscriptSerializer(transcript).data
+
+
+class TranscriptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transcript
+        fields = ["id", "uploaded_file", "text", "file", "created_at", "updated_at"]
         
 ## Notifications Serializer
 class NotificationSerializer(serializers.ModelSerializer):
@@ -82,5 +95,27 @@ class UpdatePasswordSerializer(serializers.Serializer):
     
     def validate(self, data):
         if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({"password": "Passwords do not match."})
+        return data
+
+
+class ContactSupportSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    message = serializers.CharField(max_length=5000)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, data):
+        if data["new_password"] != data["confirm_password"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
         return data
