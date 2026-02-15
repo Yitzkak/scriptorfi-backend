@@ -4,7 +4,7 @@ djangorestframework-simplejwt==5.3.1
 django-cors-headers==4.6.0
 paypalrestsdk==1.13.3
 requests==2.32.3
-psycopg2==2.9.9
+psycopg[binary]
 whitenoise==6.7.0
-dj-database-url==2.2.0
+dj-database-url
 gunicorn==22.0.0
