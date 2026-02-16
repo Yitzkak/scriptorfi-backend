@@ -1,3 +1,9 @@
+# File upload limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
+
+# Static files root
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 """
 Django settings for scriptorfi_backend project.
 
