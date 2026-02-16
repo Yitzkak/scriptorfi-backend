@@ -25,6 +25,7 @@ from .payment_views import (
     PaystackWebhookView,
     PayPalWebhookView
 )
+from .chunked_upload import ChunkedUploadView
 
 urlpatterns = [
     path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
@@ -62,4 +63,5 @@ urlpatterns = [
     path('payment/paystack/verify/', VerifyPaystackPaymentView.as_view(), name='paystack_verify'),
     path('payment/paystack/webhook/', PaystackWebhookView.as_view(), name='paystack_webhook'),
     path('payment/paypal/webhook/', PayPalWebhookView.as_view(), name='paypal_webhook'),
+    path('files/upload/chunked/', ChunkedUploadView.as_view(), name='chunked_upload'),
 ]
