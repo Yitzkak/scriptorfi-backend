@@ -1,9 +1,4 @@
-# File upload limits
-DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
 
-# Static files root
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 """
 Django settings for scriptorfi_backend project.
 
@@ -21,8 +16,23 @@ from datetime import timedelta
 import os
 import dj_database_url
 
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+
+
+# File upload limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700MB
+
+# Static files root
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+
+
 
 
 def _load_env_file(path):
@@ -95,16 +105,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://scriptorfi.com",
 ]
-# cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
-# if cors_env:
-#     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_env:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://scriptorfi.com",
 ]
-# csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
-# if csrf_env:
-#     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_env.split(",") if origin.strip()]
+csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if csrf_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_env.split(",") if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
