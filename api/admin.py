@@ -7,9 +7,9 @@ from django.contrib.auth.admin import UserAdmin
 class CustomUserAdmin(UserAdmin):
     # Define the fields to display in the admin
     model = CustomUser
-    list_display = ('username','email', 'is_superuser', 'is_super_admin','is_staff', 'first_name', 'last_name', 'country')
+    list_display = ('username','email', 'is_superuser', 'is_super_admin','is_staff', 'first_name', 'last_name', 'country', 'currency')
     fieldsets = (
-        (None, {'fields': ('email', 'password', 'first_name', 'last_name', 'country')}),
+        (None, {'fields': ('email', 'password', 'first_name', 'last_name', 'country', 'currency')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'is_super_admin')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )

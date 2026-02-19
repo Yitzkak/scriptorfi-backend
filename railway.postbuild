@@ -1,1 +1,3 @@
 apt-get update && apt-get install -y libpq-dev gcc
+python manage.py makemigrations --noinput
+python manage.py migrate --noinput

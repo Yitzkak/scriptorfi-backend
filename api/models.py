@@ -9,6 +9,7 @@ class CustomUser(AbstractUser):
     is_super_admin = models.BooleanField(default=False)
     country = models.CharField(max_length=100, blank=True, null=True)
     free_trial_used = models.BooleanField(default=False)
+    currency = models.CharField(max_length=10, blank=True, null=True, default='USD')
 
     def __str__(self):
         return self.username

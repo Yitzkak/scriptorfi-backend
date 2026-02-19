@@ -86,7 +86,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['email', 'country', 'first_name', 'last_name']
+        fields = ['email', 'country', 'first_name', 'last_name', 'currency']
 
 class UpdatePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, write_only=True)
