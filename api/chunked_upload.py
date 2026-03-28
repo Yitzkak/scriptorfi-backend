@@ -89,6 +89,7 @@ class ChunkedUploadView(APIView):
                     spelling=metadata.get('spelling', 'US'),
                     additional_info=metadata.get('instruction', ''),
                     total_cost=Decimal(str(metadata.get('total_cost', 0))),
+                    transcription_type=metadata.get('transcription_type', 'manual'),
                 )
                 uploaded_file.save()
             

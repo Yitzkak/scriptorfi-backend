@@ -8,3 +8,5 @@ psycopg[binary]
 whitenoise==6.7.0
 dj-database-url
 gunicorn==22.0.0
+google-cloud-speech==2.27.0
+pydub==0.25.1

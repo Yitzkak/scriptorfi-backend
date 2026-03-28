@@ -63,6 +63,16 @@ class UploadedFile(models.Model):
     paypal_payment_id = models.CharField(max_length=255, null=True, blank=True)
     paypal_payer_id = models.CharField(max_length=255, null=True, blank=True)
 
+    TRANSCRIPTION_TYPE_CHOICES = [
+        ('manual', 'Manual'),
+        ('auto', 'Auto'),
+    ]
+    transcription_type = models.CharField(
+        max_length=10,
+        choices=TRANSCRIPTION_TYPE_CHOICES,
+        default='manual'
+    )
+
     def __str__(self):
         return self.name
 

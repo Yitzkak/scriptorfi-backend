@@ -26,6 +26,7 @@ from .payment_views import (
     PayPalWebhookView
 )
 from .chunked_upload import ChunkedUploadView
+from .auto_transcribe import AutoTranscribeView
 
 urlpatterns = [
     path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
@@ -64,4 +65,5 @@ urlpatterns = [
     path('payment/paystack/webhook/', PaystackWebhookView.as_view(), name='paystack_webhook'),
     path('payment/paypal/webhook/', PayPalWebhookView.as_view(), name='paypal_webhook'),
     path('files/upload/chunked/', ChunkedUploadView.as_view(), name='chunked_upload'),
+    path('files/<int:file_id>/auto-transcribe/', AutoTranscribeView.as_view(), name='auto_transcribe'),
 ]

@@ -62,7 +62,7 @@ class FileSerializer(serializers.ModelSerializer):
     transcript = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = UploadedFile
-        fields = ["id", "name", "size", "file", "date_uploaded", "status", "payment_status", "user", "total_cost", "verbatim", "rush_order", "timestamp", "spelling", "additional_info", "transcript"]
+        fields = ["id", "name", "size", "file", "date_uploaded", "status", "payment_status", "user", "total_cost", "verbatim", "rush_order", "timestamp", "spelling", "additional_info", "transcript", "transcription_type"]
 
     def get_transcript(self, obj):
         transcript = getattr(obj, "transcript", None)
