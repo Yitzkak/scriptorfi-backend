@@ -12,7 +12,8 @@ from .views import (
     UserTranscriptionListView, TranscriptDetailView, AdminUploadTranscriptView,
     ContactSupportView,
     PasswordResetRequestView,
-    PasswordResetConfirmView
+    PasswordResetConfirmView,
+    UpdateFileTranscriptionTypeView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -66,4 +67,5 @@ urlpatterns = [
     path('payment/paypal/webhook/', PayPalWebhookView.as_view(), name='paypal_webhook'),
     path('files/upload/chunked/', ChunkedUploadView.as_view(), name='chunked_upload'),
     path('files/<int:file_id>/auto-transcribe/', AutoTranscribeView.as_view(), name='auto_transcribe'),
+    path('files/<int:file_id>/transcription-type/', UpdateFileTranscriptionTypeView.as_view(), name='update_transcription_type'),
 ]

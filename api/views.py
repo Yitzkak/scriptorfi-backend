@@ -130,6 +130,22 @@ class AdminFileListView(ListAPIView):
     serializer_class = FileSerializer
 
 
+class UpdateFileTranscriptionTypeView(APIView):
+    """Allow the file owner to change transcription_type before payment."""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, file_id):
+        uploaded_file = get_object_or_404(UploadedFile, id=file_id, user=request.user)
+        if uploaded_file.payment_status == "Paid":
+            return Response({"error": "Cannot change transcription type after payment."}, status=400)
+        new_type = request.data.get("transcription_type")
+        if new_type not in ("manual", "auto"):
+            return Response({"error": "transcription_type must be 'manual' or 'auto'."}, status=400)
+        uploaded_file.transcription_type = new_type
+        uploaded_file.save(update_fields=["transcription_type"])
+        return Response({"transcription_type": uploaded_file.transcription_type})
+
+
 class UserTranscriptionListView(APIView):
     permission_classes = [IsAuthenticated]
 
