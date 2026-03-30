@@ -356,11 +356,14 @@ class CreatePaystackPaymentView(APIView):
             )
 
         total_amount = sum(Decimal(str(f.total_cost or 0)) for f in files)
-        amount_kobo = int(total_amount * 100)
+        # Paystack amount must be in the smallest currency unit.
+        # total_cost is stored in USD, so multiply by 100 to get cents.
+        amount_cents = int(total_amount * 100)
 
         payload = {
             "email": email,
-            "amount": amount_kobo,
+            "amount": amount_cents,
+            "currency": "USD",
             "callback_url": request.data.get('callback_url', 'http://localhost:3000/dashboard/payment/success'),
             "metadata": {
                 "file_ids": [f.id for f in files],
@@ -444,7 +447,8 @@ class VerifyPaystackPaymentView(APIView):
             )
 
         total_amount = sum(Decimal(str(f.total_cost or 0)) for f in files)
-        expected_amount_kobo = int(total_amount * 100)
+        # Must match the cents value sent during initialization
+        expected_amount_cents = int(total_amount * 100)
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -477,7 +481,7 @@ class VerifyPaystackPaymentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if expected_amount_kobo and transaction.get("amount") != expected_amount_kobo:
+        if expected_amount_cents and transaction.get("amount") != expected_amount_cents:
             return Response(
                 {"error": "Payment amount mismatch"},
                 status=status.HTTP_400_BAD_REQUEST
