@@ -355,15 +355,34 @@ class CreatePaystackPaymentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        total_amount = sum(Decimal(str(f.total_cost or 0)) for f in files)
-        # Paystack amount must be in the smallest currency unit.
-        # total_cost is stored in USD, so multiply by 100 to get cents.
-        amount_cents = int(total_amount * 100)
+        total_amount_usd = sum(Decimal(str(f.total_cost or 0)) for f in files)
+
+        # Convert the USD total to the merchant's Paystack currency, then express
+        # in the smallest unit (kobo for NGN, cents for USD, pesewas for GHS, etc.)
+        paystack_currency = getattr(settings, 'PAYSTACK_CURRENCY', 'NGN').upper()
+
+        if paystack_currency == 'USD':
+            # USD is supported on the account — send cents directly
+            amount_smallest = int(total_amount_usd * 100)
+        else:
+            # Fetch live exchange rate from USD to the target currency
+            try:
+                rate_response = requests.get(
+                    'https://api.exchangerate-api.com/v4/latest/USD',
+                    timeout=10,
+                )
+                rate_data = rate_response.json()
+                rate = Decimal(str(rate_data['rates'].get(paystack_currency, 1)))
+            except Exception as exc:
+                print(f"[Paystack] Exchange rate fetch failed: {exc}. Falling back to 1.")
+                rate = Decimal('1')
+            converted = (total_amount_usd * rate).quantize(Decimal('0.01'))
+            amount_smallest = int(converted * 100)  # e.g. NGN kobo, GHS pesewas
 
         payload = {
             "email": email,
-            "amount": amount_cents,
-            "currency": "USD",
+            "amount": amount_smallest,
+            "currency": paystack_currency,
             "callback_url": request.data.get('callback_url', 'http://localhost:3000/dashboard/payment/success'),
             "metadata": {
                 "file_ids": [f.id for f in files],
@@ -383,9 +402,15 @@ class CreatePaystackPaymentView(APIView):
             timeout=20,
         )
 
+        print(f"[Paystack init] status={response.status_code} body={response.text}")
+
         if response.status_code != 200:
+            try:
+                error_detail = response.json().get("message", response.text)
+            except Exception:
+                error_detail = response.text
             return Response(
-                {"error": "Failed to initialize Paystack payment", "details": response.text},
+                {"error": f"Paystack error: {error_detail}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -446,9 +471,17 @@ class VerifyPaystackPaymentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        total_amount = sum(Decimal(str(f.total_cost or 0)) for f in files)
-        # Must match the cents value sent during initialization
-        expected_amount_cents = int(total_amount * 100)
+        total_amount_usd = sum(Decimal(str(f.total_cost or 0)) for f in files)
+        paystack_currency = getattr(settings, 'PAYSTACK_CURRENCY', 'NGN').upper()
+        if paystack_currency == 'USD':
+            expected_amount_smallest = int(total_amount_usd * 100)
+        else:
+            try:
+                rate_response = requests.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=10)
+                rate = Decimal(str(rate_response.json()['rates'].get(paystack_currency, 1)))
+            except Exception:
+                rate = Decimal('1')
+            expected_amount_smallest = int((total_amount_usd * rate).quantize(Decimal('0.01')) * 100)
 
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -481,7 +514,7 @@ class VerifyPaystackPaymentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if expected_amount_cents and transaction.get("amount") != expected_amount_cents:
+        if expected_amount_smallest and transaction.get("amount") != expected_amount_smallest:
             return Response(
                 {"error": "Payment amount mismatch"},
                 status=status.HTTP_400_BAD_REQUEST
