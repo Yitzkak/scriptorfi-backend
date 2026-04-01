@@ -151,7 +151,7 @@ class UserTranscriptionListView(APIView):
 
     def get(self, request):
         files = UploadedFile.objects.filter(user=request.user, status="Completed")
-        serializer = FileSerializer(files, many=True)
+        serializer = FileSerializer(files, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -163,7 +163,7 @@ class TranscriptDetailView(APIView):
         transcript = getattr(uploaded_file, "transcript", None)
         if not transcript:
             return Response({"error": "Transcript not available"}, status=404)
-        serializer = TranscriptSerializer(transcript)
+        serializer = TranscriptSerializer(transcript, context={'request': request})
         return Response(serializer.data)
 
 
@@ -190,7 +190,7 @@ class AdminUploadTranscriptView(APIView):
         uploaded_file.save(update_fields=["status"])
         create_notification_for_customer(uploaded_file, "Completed")
 
-        serializer = TranscriptSerializer(transcript)
+        serializer = TranscriptSerializer(transcript, context={'request': request})
         return Response(serializer.data, status=200)
     
 ### Login for user

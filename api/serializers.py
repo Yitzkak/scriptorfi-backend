@@ -68,7 +68,7 @@ class FileSerializer(serializers.ModelSerializer):
         transcript = getattr(obj, "transcript", None)
         if not transcript:
             return None
-        return TranscriptSerializer(transcript).data
+        return TranscriptSerializer(transcript, context=self.context).data
 
 
 class TranscriptSerializer(serializers.ModelSerializer):
