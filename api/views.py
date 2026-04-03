@@ -128,8 +128,13 @@ class UpdateFileStatusView(APIView):
 ## Super Admin file list view
 class AdminFileListView(ListAPIView):
     permission_classes = [IsSuperAdmin]
-    queryset = UploadedFile.objects.all()
+    queryset = UploadedFile.objects.all().select_related('transcript', 'user')
     serializer_class = FileSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 class UpdateFileTranscriptionTypeView(APIView):
