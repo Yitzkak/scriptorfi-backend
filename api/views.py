@@ -43,6 +43,8 @@ def create_notification_for_admins(file, user):
         )
         
 def create_notification_for_customer(file, status):
+    if not file.user:
+        return
     Notification.objects.create(
         user=file.user,
         message=f"Your file '{file.name}' has been marked as {status}."
@@ -173,25 +175,28 @@ class AdminUploadTranscriptView(APIView):
 
     def post(self, request, file_id):
         uploaded_file = get_object_or_404(UploadedFile, id=file_id)
-        transcript_text = request.data.get("transcript_text")
-        transcript_file = request.FILES.get("transcript_file")
+        transcript_text = request.data.get("transcript_text") or None
+        transcript_file = request.FILES.get("transcript_file") or None
 
         if not transcript_text and not transcript_file:
             return Response({"error": "transcript_text or transcript_file is required"}, status=400)
 
-        transcript, _created = Transcript.objects.get_or_create(uploaded_file=uploaded_file)
-        if transcript_text:
-            transcript.text = transcript_text
-        if transcript_file:
-            transcript.file = transcript_file
-        transcript.save()
+        try:
+            transcript, _created = Transcript.objects.get_or_create(uploaded_file=uploaded_file)
+            if transcript_text:
+                transcript.text = transcript_text
+            if transcript_file:
+                transcript.file = transcript_file
+            transcript.save()
 
-        uploaded_file.status = "Completed"
-        uploaded_file.save(update_fields=["status"])
-        create_notification_for_customer(uploaded_file, "Completed")
+            uploaded_file.status = "Completed"
+            uploaded_file.save(update_fields=["status"])
+            create_notification_for_customer(uploaded_file, "Completed")
 
-        serializer = TranscriptSerializer(transcript, context={'request': request})
-        return Response(serializer.data, status=200)
+            serializer = TranscriptSerializer(transcript, context={'request': request})
+            return Response(serializer.data, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
     
 ### Login for user
 class CustomTokenObtainPairView(TokenObtainPairView):
