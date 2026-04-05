@@ -266,8 +266,9 @@ if GCS_BUCKET_NAME and not DEBUG:
         GS_CREDENTIALS = None
     
     GS_BUCKET_NAME = GCS_BUCKET_NAME
-    GS_DEFAULT_ACL = "publicRead"  # Files are publicly readable
+    GS_DEFAULT_ACL = None  # Use bucket-level permissions (uniform access)
     GS_QUERYSTRING_AUTH = False  # Don't use signed URLs for public files
+    GS_FILE_OVERWRITE = False  # Don't overwrite files with same name
     DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
     MEDIA_URL = f"https://storage.googleapis.com/{GCS_BUCKET_NAME}/"
 
