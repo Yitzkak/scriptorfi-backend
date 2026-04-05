@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "api",
     "rest_framework_simplejwt.token_blacklist",
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -248,6 +249,27 @@ ALLOWED_UPLOAD_MIME_TYPES = [
     "audio/aac",
     "audio/ogg",
 ]
+
+# Google Cloud Storage for media files (production only)
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "")
+if GCS_BUCKET_NAME and not DEBUG:
+    import json
+    from google.oauth2 import service_account
+    
+    # Use the same credentials as Speech-to-Text
+    gcs_creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON", "")
+    if gcs_creds_json:
+        GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
+            json.loads(gcs_creds_json)
+        )
+    else:
+        GS_CREDENTIALS = None
+    
+    GS_BUCKET_NAME = GCS_BUCKET_NAME
+    GS_DEFAULT_ACL = "publicRead"  # Files are publicly readable
+    GS_QUERYSTRING_AUTH = False  # Don't use signed URLs for public files
+    DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+    MEDIA_URL = f"https://storage.googleapis.com/{GCS_BUCKET_NAME}/"
 
 # Email configuration
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
