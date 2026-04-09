@@ -181,6 +181,38 @@ class TranscriptDetailView(APIView):
         return Response(serializer.data)
 
 
+class TranscriptDownloadView(APIView):
+    """Proxy endpoint to download transcript files (avoids CORS issues with GCS)"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_id):
+        from django.http import HttpResponse
+        uploaded_file = get_object_or_404(UploadedFile, id=file_id, user=request.user)
+        transcript = getattr(uploaded_file, "transcript", None)
+        if not transcript:
+            return Response({"error": "Transcript not available"}, status=404)
+        
+        # If transcript has a file, serve it
+        if transcript.file:
+            try:
+                file_content = transcript.file.read()
+                file_name = transcript.file.name.split('/')[-1]
+                response = HttpResponse(file_content, content_type='application/octet-stream')
+                response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+                return response
+            except Exception as e:
+                return Response({"error": f"Failed to read file: {str(e)}"}, status=500)
+        
+        # If transcript only has text, serve as .txt
+        if transcript.text:
+            file_name = f"{uploaded_file.name.rsplit('.', 1)[0]}_transcript.txt"
+            response = HttpResponse(transcript.text, content_type='text/plain')
+            response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+            return response
+        
+        return Response({"error": "No transcript content available"}, status=404)
+
+
 class AdminUploadTranscriptView(APIView):
     permission_classes = [IsSuperAdmin]
     parser_classes = (MultiPartParser, FormParser)
