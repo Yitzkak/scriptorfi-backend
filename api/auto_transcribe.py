@@ -159,7 +159,6 @@ def _run_transcription(file_id: int) -> None:
                     model="chirp",  # Google's latest, most accurate model
                     features=cloud_speech.RecognitionFeatures(
                         enable_automatic_punctuation=True,
-                        enable_spoken_punctuation=True,
                     ),
                 ),
                 content=audio_content,
@@ -348,7 +347,6 @@ class TestAutoTranscribeView(APIView):
                         model="chirp",
                         features=cloud_speech.RecognitionFeatures(
                             enable_automatic_punctuation=True,
-                            enable_spoken_punctuation=True,
                         ),
                     ),
                     content=audio_content,
