@@ -208,7 +208,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Note: staticfiles storage is configured in STORAGES dict below
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -269,8 +269,27 @@ if GCS_BUCKET_NAME and not DEBUG:
     GS_DEFAULT_ACL = None  # Use bucket-level permissions (uniform access)
     GS_QUERYSTRING_AUTH = False  # Don't use signed URLs for public files
     GS_FILE_OVERWRITE = False  # Don't overwrite files with same name
-    DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+    
+    # Django 5.x uses STORAGES instead of DEFAULT_FILE_STORAGE
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
     MEDIA_URL = f"https://storage.googleapis.com/{GCS_BUCKET_NAME}/"
+else:
+    # Local/development storage
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # Email configuration
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")

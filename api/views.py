@@ -586,16 +586,30 @@ class StorageDiagnosticView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        storage_backend = settings.DEFAULT_FILE_STORAGE if hasattr(settings, 'DEFAULT_FILE_STORAGE') else 'django.core.files.storage.FileSystemStorage'
+        # Check new Django 5.x STORAGES setting
+        storages_config = getattr(settings, 'STORAGES', {})
+        default_storage_config = storages_config.get('default', {})
+        storage_backend = default_storage_config.get('BACKEND', 'django.core.files.storage.FileSystemStorage')
+        
+        # Fallback to old setting for compatibility
+        if not storage_backend or storage_backend == 'django.core.files.storage.FileSystemStorage':
+            storage_backend = getattr(settings, 'DEFAULT_FILE_STORAGE', storage_backend)
+        
         is_gcs = 'gcloud' in storage_backend.lower()
         
+        # Also check what default_storage is actually using
+        actual_storage = default_storage.__class__.__name__
+        actual_module = default_storage.__class__.__module__
+        
         return Response({
-            "storage_backend": storage_backend,
-            "is_gcs": is_gcs,
+            "configured_backend": storage_backend,
+            "actual_storage_class": actual_storage,
+            "actual_storage_module": actual_module,
+            "is_gcs": is_gcs or 'gcloud' in actual_module.lower(),
             "debug": settings.DEBUG,
             "gcs_bucket": getattr(settings, 'GS_BUCKET_NAME', None),
             "media_url": settings.MEDIA_URL,
-            "status": "GCS Active" if is_gcs else "Local Storage (files will be lost on redeploy!)",
+            "status": "GCS Active" if (is_gcs or 'gcloud' in actual_module.lower()) else "Local Storage (files will be lost on redeploy!)",
         })
 
 
