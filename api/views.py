@@ -177,6 +177,21 @@ class TranscriptDetailView(APIView):
         transcript = getattr(uploaded_file, "transcript", None)
         if not transcript:
             return Response({"error": "Transcript not available"}, status=404)
+        
+        # If transcript has file but no text, read text from file
+        if not transcript.text and transcript.file:
+            try:
+                file_content = transcript.file.read()
+                try:
+                    text_content = file_content.decode('utf-8')
+                except UnicodeDecodeError:
+                    text_content = file_content.decode('latin-1')
+                # Save the extracted text for future requests
+                transcript.text = text_content
+                transcript.save(update_fields=['text'])
+            except Exception as e:
+                print(f"[TranscriptDetailView] Could not read file content: {e}")
+        
         serializer = TranscriptSerializer(transcript, context={'request': request})
         return Response(serializer.data)
 
@@ -234,6 +249,23 @@ class AdminUploadTranscriptView(APIView):
                 print(f"[AdminUploadTranscript] Saving file: {transcript_file.name}, size: {transcript_file.size}")
                 print(f"[AdminUploadTranscript] Storage backend: {default_storage.__class__.__name__}")
                 transcript.file = transcript_file
+                
+                # Also extract text content from the file if possible
+                if not transcript_text:
+                    try:
+                        transcript_file.seek(0)
+                        file_content = transcript_file.read()
+                        # Try to decode as text
+                        try:
+                            text_content = file_content.decode('utf-8')
+                        except UnicodeDecodeError:
+                            text_content = file_content.decode('latin-1')
+                        transcript.text = text_content
+                        print(f"[AdminUploadTranscript] Extracted text content, length: {len(text_content)}")
+                        transcript_file.seek(0)  # Reset file position for storage
+                    except Exception as text_err:
+                        print(f"[AdminUploadTranscript] Could not extract text from file: {text_err}")
+                        
             transcript.save()
             
             # Log after save
