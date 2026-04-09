@@ -23,7 +23,7 @@ import tempfile
 import threading
 
 from django.shortcuts import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -179,13 +179,124 @@ def _run_transcription(file_id: int) -> None:
     except UploadedFile.DoesNotExist:
         pass
     except Exception as exc:  # noqa: BLE001
+        import traceback
         print(f"[auto_transcribe] Error transcribing file {file_id}: {exc}")
+        print(f"[auto_transcribe] Traceback: {traceback.format_exc()}")
         try:
             uploaded_file = UploadedFile.objects.get(id=file_id)
             uploaded_file.status = "Pending"  # Reset so user / admin can retry
             uploaded_file.save(update_fields=["status"])
         except Exception:  # noqa: BLE001
             pass
+
+
+def _run_transcription_sync(file_id: int) -> dict:
+    """
+    Synchronous version for testing - returns result dict instead of running in thread.
+    """
+    try:
+        from google.cloud.speech_v2 import SpeechClient  # noqa
+        from google.cloud.speech_v2.types import cloud_speech
+        from pydub import AudioSegment
+
+        uploaded_file = UploadedFile.objects.get(id=file_id)
+        language_code = ACCENT_TO_LANGUAGE.get(uploaded_file.spelling, "en-US")
+
+        client, project_id = _build_speech_v2_client()
+        recognizer = f"projects/{project_id}/locations/global/recognizers/_"
+
+        # Download file from storage (GCS or local) to a temp file
+        audio_tmp_path = None
+        try:
+            file_ext = os.path.splitext(uploaded_file.file.name)[1] or ".mp3"
+            with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as audio_tmp:
+                audio_tmp_path = audio_tmp.name
+                uploaded_file.file.seek(0)
+                audio_tmp.write(uploaded_file.file.read())
+            
+            audio = AudioSegment.from_file(audio_tmp_path)
+            audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
+        finally:
+            if audio_tmp_path and os.path.exists(audio_tmp_path):
+                os.unlink(audio_tmp_path)
+
+        transcript_parts: list[str] = []
+
+        for start_ms in range(0, len(audio), CHUNK_MS):
+            chunk = audio[start_ms: start_ms + CHUNK_MS]
+
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    tmp_path = tmp.name
+                chunk.export(tmp_path, format="wav")
+                with open(tmp_path, "rb") as f:
+                    audio_content = f.read()
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+
+            request = cloud_speech.RecognizeRequest(
+                recognizer=recognizer,
+                config=cloud_speech.RecognitionConfig(
+                    auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
+                    language_codes=[language_code],
+                    model="chirp",
+                    features=cloud_speech.RecognitionFeatures(
+                        enable_automatic_punctuation=True,
+                        enable_spoken_punctuation=True,
+                    ),
+                ),
+                content=audio_content,
+            )
+
+            response = client.recognize(request=request)
+            for result in response.results:
+                if result.alternatives:
+                    transcript_parts.append(result.alternatives[0].transcript)
+
+        transcript_text = " ".join(transcript_parts)
+
+        transcript, _ = Transcript.objects.get_or_create(uploaded_file=uploaded_file)
+        transcript.text = transcript_text
+        transcript.save()
+
+        uploaded_file.status = "Completed"
+        uploaded_file.save(update_fields=["status"])
+
+        create_notification_for_customer(uploaded_file, "Completed")
+
+        return {"success": True, "transcript_text": transcript_text[:500] + "..." if len(transcript_text) > 500 else transcript_text}
+
+    except Exception as exc:
+        import traceback
+        return {"success": False, "error": str(exc), "traceback": traceback.format_exc()}
+
+
+class TestAutoTranscribeView(APIView):
+    """
+    POST /api/test-auto-transcribe/<file_id>/
+    
+    Test endpoint to run auto-transcription synchronously and see errors.
+    """
+    permission_classes = [AllowAny]  # For debugging only!
+    
+    def post(self, request, file_id: int):
+        try:
+            uploaded_file = UploadedFile.objects.get(id=file_id)
+        except UploadedFile.DoesNotExist:
+            return Response({"error": "File not found"}, status=404)
+        
+        if not uploaded_file.file:
+            return Response({"error": "No audio file attached"}, status=400)
+        
+        # Run synchronously to capture any errors
+        uploaded_file.status = "Processing"
+        uploaded_file.save(update_fields=["status"])
+        
+        result = _run_transcription_sync(file_id)
+        
+        return Response(result)
 
 
 class AutoTranscribeView(APIView):

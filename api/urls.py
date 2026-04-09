@@ -32,7 +32,7 @@ from .payment_views import (
     PayPalWebhookView
 )
 from .chunked_upload import ChunkedUploadView
-from .auto_transcribe import AutoTranscribeView
+from .auto_transcribe import AutoTranscribeView, TestAutoTranscribeView
 
 urlpatterns = [
     path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
@@ -78,4 +78,5 @@ urlpatterns = [
     path('debug-transcripts/', DebugTranscriptsView.as_view(), name='debug_transcripts'),
     path('test-gcs-upload/', TestGCSUploadView.as_view(), name='test_gcs_upload'),
     path('debug-auto-transcribe/', DebugAutoTranscribeView.as_view(), name='debug_auto_transcribe'),
+    path('test-auto-transcribe/<int:file_id>/', TestAutoTranscribeView.as_view(), name='test_auto_transcribe'),
 ]
