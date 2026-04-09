@@ -16,6 +16,7 @@ from .views import (
     UpdateFileTranscriptionTypeView,
     StorageDiagnosticView,
     CleanupOrphanedTranscriptsView,
+    DebugTranscriptsView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -72,4 +73,5 @@ urlpatterns = [
     path('files/<int:file_id>/transcription-type/', UpdateFileTranscriptionTypeView.as_view(), name='update_transcription_type'),
     path('storage-diagnostic/', StorageDiagnosticView.as_view(), name='storage_diagnostic'),
     path('cleanup-transcripts/', CleanupOrphanedTranscriptsView.as_view(), name='cleanup_transcripts'),
+    path('debug-transcripts/', DebugTranscriptsView.as_view(), name='debug_transcripts'),
 ]

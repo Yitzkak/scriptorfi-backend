@@ -657,6 +657,41 @@ class CleanupOrphanedTranscriptsView(APIView):
         })
 
 
+class DebugTranscriptsView(APIView):
+    """
+    GET /api/debug-transcripts/
+    Show ALL transcript records and what the API returns for them.
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from api.models import Transcript
+        all_transcripts = Transcript.objects.select_related('uploaded_file').all()
+        
+        results = []
+        for t in all_transcripts:
+            # Raw database values
+            raw_file = t.file.name if t.file else None
+            
+            # What serializer returns
+            serializer = TranscriptSerializer(t, context={'request': request})
+            serialized_file = serializer.data.get('file')
+            
+            results.append({
+                "transcript_id": t.id,
+                "uploaded_file_id": t.uploaded_file.id,
+                "uploaded_file_name": t.uploaded_file.name,
+                "has_text": bool(t.text),
+                "raw_db_file": raw_file,
+                "serialized_file_url": serialized_file,
+            })
+        
+        return Response({
+            "total_transcripts": len(results),
+            "transcripts": results
+        })
+
+
 
 
 
