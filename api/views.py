@@ -567,9 +567,9 @@ class PasswordResetConfirmView(APIView):
 class StorageDiagnosticView(APIView):
     """
     GET /api/storage-diagnostic/
-    Returns current storage configuration (admin only).
+    Returns current storage configuration (public for quick diagnostics).
     """
-    permission_classes = [IsSuperAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         storage_backend = settings.DEFAULT_FILE_STORAGE if hasattr(settings, 'DEFAULT_FILE_STORAGE') else 'django.core.files.storage.FileSystemStorage'
