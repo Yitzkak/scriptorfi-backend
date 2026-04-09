@@ -106,9 +106,22 @@ def _run_transcription(file_id: int) -> None:
         #    Chirp accepts auto_decoding_config so we normalise to 16 kHz     #
         #    mono LINEAR16 for maximum compatibility.                          #
         # ------------------------------------------------------------------ #
-        file_path = uploaded_file.file.path
-        audio = AudioSegment.from_file(file_path)
-        audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
+        # Download file from storage (GCS or local) to a temp file
+        audio_tmp_path = None
+        try:
+            file_ext = os.path.splitext(uploaded_file.file.name)[1] or ".mp3"
+            with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as audio_tmp:
+                audio_tmp_path = audio_tmp.name
+                # Read from storage (works for both GCS and local)
+                uploaded_file.file.seek(0)
+                audio_tmp.write(uploaded_file.file.read())
+            
+            audio = AudioSegment.from_file(audio_tmp_path)
+            audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
+        finally:
+            # Clean up audio temp file after loading into memory
+            if audio_tmp_path and os.path.exists(audio_tmp_path):
+                os.unlink(audio_tmp_path)
 
         transcript_parts: list[str] = []
 
