@@ -192,8 +192,19 @@ class AdminUploadTranscriptView(APIView):
             if transcript_text:
                 transcript.text = transcript_text
             if transcript_file:
+                # Log before save
+                print(f"[AdminUploadTranscript] Saving file: {transcript_file.name}, size: {transcript_file.size}")
+                print(f"[AdminUploadTranscript] Storage backend: {default_storage.__class__.__name__}")
                 transcript.file = transcript_file
             transcript.save()
+            
+            # Log after save
+            if transcript.file:
+                print(f"[AdminUploadTranscript] Saved file path: {transcript.file.name}")
+                print(f"[AdminUploadTranscript] File URL: {transcript.file.url}")
+                # Verify file exists in storage
+                exists = default_storage.exists(transcript.file.name)
+                print(f"[AdminUploadTranscript] File exists in storage: {exists}")
 
             uploaded_file.status = "Completed"
             uploaded_file.save(update_fields=["status"])
@@ -202,6 +213,9 @@ class AdminUploadTranscriptView(APIView):
             serializer = TranscriptSerializer(transcript, context={'request': request})
             return Response(serializer.data, status=200)
         except Exception as e:
+            import traceback
+            print(f"[AdminUploadTranscript] ERROR: {e}")
+            print(traceback.format_exc())
             return Response({"error": str(e)}, status=500)
     
 ### Login for user
@@ -690,6 +704,71 @@ class DebugTranscriptsView(APIView):
             "total_transcripts": len(results),
             "transcripts": results
         })
+
+
+class TestGCSUploadView(APIView):
+    """
+    POST /api/test-gcs-upload/
+    Test file upload to GCS storage directly. Upload a file to verify GCS is working.
+    """
+    permission_classes = [AllowAny]
+    parser_classes = (MultiPartParser, FormParser)
+    
+    def get(self, request):
+        """Show current storage configuration."""
+        storage_class = default_storage.__class__.__name__
+        storage_module = default_storage.__class__.__module__
+        
+        # Try to get bucket name if using GCS
+        bucket_name = None
+        if hasattr(default_storage, 'bucket_name'):
+            bucket_name = default_storage.bucket_name
+        elif hasattr(default_storage, 'bucket'):
+            bucket_name = getattr(default_storage.bucket, 'name', None)
+        
+        return Response({
+            "storage_class": storage_class,
+            "storage_module": storage_module,
+            "bucket_name": bucket_name,
+            "is_gcs": 'gcloud' in storage_module.lower() or 'gcs' in storage_module.lower(),
+        })
+    
+    def post(self, request):
+        """Upload a test file and verify it exists in storage."""
+        test_file = request.FILES.get("file")
+        if not test_file:
+            return Response({"error": "No file provided. Send a file with key 'file'"}, status=400)
+        
+        try:
+            # Save the file using default storage
+            file_name = f"test_uploads/{test_file.name}"
+            saved_path = default_storage.save(file_name, test_file)
+            
+            # Verify it exists
+            exists = default_storage.exists(saved_path)
+            
+            # Get URL
+            url = default_storage.url(saved_path)
+            
+            # Get size
+            size = default_storage.size(saved_path) if exists else None
+            
+            return Response({
+                "success": True,
+                "original_name": test_file.name,
+                "saved_path": saved_path,
+                "exists_in_storage": exists,
+                "url": url,
+                "size": size,
+                "storage_class": default_storage.__class__.__name__,
+            })
+        except Exception as e:
+            import traceback
+            return Response({
+                "success": False,
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+            }, status=500)
 
 
 

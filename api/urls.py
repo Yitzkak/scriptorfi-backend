@@ -17,6 +17,7 @@ from .views import (
     StorageDiagnosticView,
     CleanupOrphanedTranscriptsView,
     DebugTranscriptsView,
+    TestGCSUploadView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -74,4 +75,5 @@ urlpatterns = [
     path('storage-diagnostic/', StorageDiagnosticView.as_view(), name='storage_diagnostic'),
     path('cleanup-transcripts/', CleanupOrphanedTranscriptsView.as_view(), name='cleanup_transcripts'),
     path('debug-transcripts/', DebugTranscriptsView.as_view(), name='debug_transcripts'),
+    path('test-gcs-upload/', TestGCSUploadView.as_view(), name='test_gcs_upload'),
 ]
