@@ -158,7 +158,13 @@ class UserTranscriptionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        files = UploadedFile.objects.filter(user=request.user, status="Completed")
+        # Show all paid files (completed, processing, or pending transcription)
+        from django.db.models import Q
+        files = UploadedFile.objects.filter(
+            user=request.user
+        ).filter(
+            Q(status="Completed") | Q(payment_status="Paid")
+        ).distinct().order_by('-date_uploaded')
         serializer = FileSerializer(files, many=True, context={'request': request})
         return Response(serializer.data)
 
