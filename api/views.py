@@ -585,6 +585,78 @@ class StorageDiagnosticView(APIView):
         })
 
 
+class CleanupOrphanedTranscriptsView(APIView):
+    """
+    GET  /api/cleanup-transcripts/ - List orphaned transcript files
+    POST /api/cleanup-transcripts/ - Fix orphaned transcript files (clear references)
+    """
+    permission_classes = [AllowAny]  # Temporary for cleanup, can restrict later
+
+    def get(self, request):
+        """List orphaned transcript file references."""
+        transcripts = Transcript.objects.exclude(file='').exclude(file__isnull=True)
+        orphaned = []
+        valid = []
+        
+        for transcript in transcripts:
+            file_name = transcript.file.name
+            try:
+                exists = default_storage.exists(file_name)
+            except Exception as e:
+                exists = False
+            
+            if exists:
+                valid.append({
+                    "id": transcript.id,
+                    "file": file_name,
+                    "uploaded_file_name": transcript.uploaded_file.name,
+                    "status": "valid"
+                })
+            else:
+                orphaned.append({
+                    "id": transcript.id,
+                    "file": file_name,
+                    "uploaded_file_name": transcript.uploaded_file.name,
+                    "status": "orphaned"
+                })
+        
+        return Response({
+            "total_with_files": len(valid) + len(orphaned),
+            "valid": len(valid),
+            "orphaned": len(orphaned),
+            "orphaned_files": orphaned,
+            "message": "Use POST to fix orphaned references" if orphaned else "No orphaned files found"
+        })
+
+    def post(self, request):
+        """Clear orphaned transcript file references."""
+        transcripts = Transcript.objects.exclude(file='').exclude(file__isnull=True)
+        fixed = []
+        
+        for transcript in transcripts:
+            file_name = transcript.file.name
+            try:
+                exists = default_storage.exists(file_name)
+            except Exception:
+                exists = False
+            
+            if not exists:
+                old_file = transcript.file.name
+                transcript.file = None
+                transcript.save(update_fields=['file'])
+                fixed.append({
+                    "id": transcript.id,
+                    "cleared_file": old_file,
+                    "uploaded_file_name": transcript.uploaded_file.name
+                })
+        
+        return Response({
+            "fixed_count": len(fixed),
+            "fixed_files": fixed,
+            "message": f"Cleared {len(fixed)} orphaned file references" if fixed else "No orphaned files to fix"
+        })
+
+
 
 
 

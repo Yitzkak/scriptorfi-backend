@@ -15,6 +15,7 @@ from .views import (
     PasswordResetConfirmView,
     UpdateFileTranscriptionTypeView,
     StorageDiagnosticView,
+    CleanupOrphanedTranscriptsView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -70,4 +71,5 @@ urlpatterns = [
     path('files/<int:file_id>/auto-transcribe/', AutoTranscribeView.as_view(), name='auto_transcribe'),
     path('files/<int:file_id>/transcription-type/', UpdateFileTranscriptionTypeView.as_view(), name='update_transcription_type'),
     path('storage-diagnostic/', StorageDiagnosticView.as_view(), name='storage_diagnostic'),
+    path('cleanup-transcripts/', CleanupOrphanedTranscriptsView.as_view(), name='cleanup_transcripts'),
 ]
