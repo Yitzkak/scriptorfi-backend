@@ -72,9 +72,27 @@ class FileSerializer(serializers.ModelSerializer):
 
 
 class TranscriptSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+    
     class Meta:
         model = Transcript
         fields = ["id", "uploaded_file", "text", "file", "created_at", "updated_at"]
+    
+    def get_file(self, obj):
+        """Return file URL only if the file actually exists."""
+        if not obj.file:
+            return None
+        try:
+            # Check if file exists (works for both local and GCS storage)
+            if hasattr(obj.file, 'storage') and hasattr(obj.file.storage, 'exists'):
+                if not obj.file.storage.exists(obj.file.name):
+                    return None
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        except Exception:
+            return None
         
 ## Notifications Serializer
 class NotificationSerializer(serializers.ModelSerializer):

@@ -11,6 +11,7 @@ from .serializers import (
     PasswordResetConfirmSerializer
 )
 from django.conf import settings
+from django.core.files.storage import default_storage
 from decimal import Decimal, ROUND_HALF_UP
 from .tokens import generate_confirmation_token  
 from rest_framework.permissions import AllowAny, IsAdminUser
@@ -561,6 +562,27 @@ class PasswordResetConfirmView(APIView):
         user.save()
 
         return Response({"message": "Password reset successfully."}, status=status.HTTP_200_OK)
+
+
+class StorageDiagnosticView(APIView):
+    """
+    GET /api/storage-diagnostic/
+    Returns current storage configuration (admin only).
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        storage_backend = settings.DEFAULT_FILE_STORAGE if hasattr(settings, 'DEFAULT_FILE_STORAGE') else 'django.core.files.storage.FileSystemStorage'
+        is_gcs = 'gcloud' in storage_backend.lower()
+        
+        return Response({
+            "storage_backend": storage_backend,
+            "is_gcs": is_gcs,
+            "debug": settings.DEBUG,
+            "gcs_bucket": getattr(settings, 'GS_BUCKET_NAME', None),
+            "media_url": settings.MEDIA_URL,
+            "status": "GCS Active" if is_gcs else "Local Storage (files will be lost on redeploy!)",
+        })
 
 
 

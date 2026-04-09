@@ -14,6 +14,7 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     UpdateFileTranscriptionTypeView,
+    StorageDiagnosticView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -68,4 +69,5 @@ urlpatterns = [
     path('files/upload/chunked/', ChunkedUploadView.as_view(), name='chunked_upload'),
     path('files/<int:file_id>/auto-transcribe/', AutoTranscribeView.as_view(), name='auto_transcribe'),
     path('files/<int:file_id>/transcription-type/', UpdateFileTranscriptionTypeView.as_view(), name='update_transcription_type'),
+    path('storage-diagnostic/', StorageDiagnosticView.as_view(), name='storage_diagnostic'),
 ]
