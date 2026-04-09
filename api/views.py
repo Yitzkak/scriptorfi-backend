@@ -791,6 +791,54 @@ class TestGCSUploadView(APIView):
             }, status=500)
 
 
+class DebugAutoTranscribeView(APIView):
+    """
+    GET /api/debug-auto-transcribe/
+    Debug endpoint to check auto-transcription files status.
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        # Find all files with transcription_type='auto' or payment_status='Paid'
+        auto_files = UploadedFile.objects.filter(transcription_type='auto').order_by('-date_uploaded')[:20]
+        paid_files = UploadedFile.objects.filter(payment_status='Paid').order_by('-date_uploaded')[:20]
+        processing_files = UploadedFile.objects.filter(status='Processing').order_by('-date_uploaded')[:20]
+        
+        def file_info(f):
+            has_audio = bool(f.file)
+            audio_url = None
+            audio_exists = False
+            if has_audio:
+                try:
+                    audio_url = f.file.url
+                    audio_exists = default_storage.exists(f.file.name)
+                except Exception as e:
+                    audio_url = f"Error: {e}"
+            
+            transcript = getattr(f, 'transcript', None)
+            return {
+                "id": f.id,
+                "name": f.name,
+                "status": f.status,
+                "payment_status": f.payment_status,
+                "transcription_type": f.transcription_type,
+                "has_audio_file": has_audio,
+                "audio_file_name": f.file.name if has_audio else None,
+                "audio_exists_in_storage": audio_exists,
+                "audio_url": audio_url,
+                "has_transcript": transcript is not None,
+                "transcript_has_text": bool(getattr(transcript, 'text', None)) if transcript else False,
+                "transcript_has_file": bool(getattr(transcript, 'file', None)) if transcript else False,
+                "date_uploaded": str(f.date_uploaded),
+            }
+        
+        return Response({
+            "auto_transcription_files": [file_info(f) for f in auto_files],
+            "paid_files": [file_info(f) for f in paid_files],
+            "processing_files": [file_info(f) for f in processing_files],
+        })
+
+
 
 
 
