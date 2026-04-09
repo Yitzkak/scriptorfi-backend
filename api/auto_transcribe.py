@@ -58,11 +58,18 @@ def _get_project_id(credentials_info: dict | None = None) -> str:
 def _build_speech_v2_client():
     """
     Return an authenticated Speech-to-Text v2 SpeechClient and the project ID.
+    Uses us-central1 endpoint for Chirp model support.
     """
     from google.cloud.speech_v2 import SpeechClient  # noqa – imported lazily
+    from google.api_core.client_options import ClientOptions
 
     credentials_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
     credentials_info = None
+    
+    # Chirp requires regional endpoint (not global)
+    client_options = ClientOptions(
+        api_endpoint="us-central1-speech.googleapis.com"
+    )
 
     if credentials_json:
         from google.oauth2 import service_account
@@ -72,10 +79,10 @@ def _build_speech_v2_client():
             credentials_info,
             scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
-        client = SpeechClient(credentials=credentials)
+        client = SpeechClient(credentials=credentials, client_options=client_options)
     else:
         # Falls back to GOOGLE_APPLICATION_CREDENTIALS or Application Default Credentials
-        client = SpeechClient()
+        client = SpeechClient(client_options=client_options)
 
     project_id = _get_project_id(credentials_info)
     return client, project_id
@@ -99,7 +106,8 @@ def _run_transcription(file_id: int) -> None:
 
         # Recognizer path — use the wildcard "_" for ad-hoc (inline) recognition
         # which lets us pass the config directly without creating a named recognizer.
-        recognizer = f"projects/{project_id}/locations/global/recognizers/_"
+        # Note: Chirp model requires us-central1 (not available in global)
+        recognizer = f"projects/{project_id}/locations/us-central1/recognizers/_"
 
         # ------------------------------------------------------------------ #
         # 1. Load audio and split into ≤ 50-second WAV chunks                 #
@@ -297,7 +305,8 @@ class TestAutoTranscribeView(APIView):
             
             language_code = ACCENT_TO_LANGUAGE.get(uploaded_file.spelling, "en-US")
             client, project_id = _build_speech_v2_client()
-            recognizer = f"projects/{project_id}/locations/global/recognizers/_"
+            # Note: Chirp model requires us-central1 (not available in global)
+            recognizer = f"projects/{project_id}/locations/us-central1/recognizers/_"
             
             # Download file from GCS to temp
             file_ext = os.path.splitext(uploaded_file.file.name)[1] or ".mp3"
