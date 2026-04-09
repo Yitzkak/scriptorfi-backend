@@ -10,5 +10,6 @@ dj-database-url
 gunicorn==22.0.0
 google-cloud-speech==2.27.0
 pydub==0.25.1
+audioop-lts
 django-storages[google]==1.14.2
 google-cloud-storage==2.14.0
