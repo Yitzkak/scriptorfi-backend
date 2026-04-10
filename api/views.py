@@ -61,8 +61,11 @@ def _parse_duration_seconds(value):
         return 0
 
 
-def _compute_cost_seconds(duration_seconds):
-    per_minute = Decimal(str(getattr(settings, "TRANSCRIPTION_PRICE_PER_MINUTE", "0.60")))
+def _compute_cost_seconds(duration_seconds, transcription_type="manual"):
+    if transcription_type == "auto":
+        per_minute = Decimal(str(getattr(settings, "AUTO_TRANSCRIPTION_PRICE_PER_MINUTE", "0.07")))
+    else:
+        per_minute = Decimal(str(getattr(settings, "TRANSCRIPTION_PRICE_PER_MINUTE", "0.60")))
     cost = (Decimal(duration_seconds) / Decimal(60)) * per_minute
     return cost.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -198,8 +201,12 @@ class UpdateFileTranscriptionTypeView(APIView):
         if new_type not in ("manual", "auto"):
             return Response({"error": "transcription_type must be 'manual' or 'auto'."}, status=400)
         uploaded_file.transcription_type = new_type
-        uploaded_file.save(update_fields=["transcription_type"])
-        return Response({"transcription_type": uploaded_file.transcription_type})
+        uploaded_file.total_cost = _compute_cost_seconds(uploaded_file.size, new_type)
+        uploaded_file.save(update_fields=["transcription_type", "total_cost"])
+        return Response({
+            "transcription_type": uploaded_file.transcription_type,
+            "total_cost": uploaded_file.total_cost,
+        })
 
 
 class UserTranscriptionListView(APIView):
@@ -405,6 +412,9 @@ class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         print(request.data)
         file = request.FILES.get('file')
+        transcription_type = request.data.get("transcription_type", "manual")
+        if transcription_type not in ("manual", "auto"):
+            transcription_type = "manual"
         
         if not file:
             print("File not right", file)
@@ -430,7 +440,7 @@ class FileUploadView(APIView):
             note = "Free trial: transcribe first 5 minutes only."
             additional_info = f"{note} {additional_info}".strip() if additional_info else note
 
-        total_cost = Decimal("0.00") if free_trial else _compute_cost_seconds(duration_seconds)
+        total_cost = Decimal("0.00") if free_trial else _compute_cost_seconds(duration_seconds, transcription_type)
         payment_status = "Paid" if total_cost == Decimal("0.00") else "Unpaid"
 
         data = {
@@ -444,7 +454,8 @@ class FileUploadView(APIView):
             "timestamp": request.data.get("timestamp"),
             "spelling": request.data.get("spelling"),
             "additional_info": additional_info,
-            "payment_status": payment_status
+            "payment_status": payment_status,
+            "transcription_type": transcription_type,
         }
 
         
@@ -531,6 +542,9 @@ class AnonymousFileUploadView(APIView):
     
     def post(self, request, *args, **kwargs):
         file = request.FILES.get('file')
+        transcription_type = request.data.get("transcription_type", "manual")
+        if transcription_type not in ("manual", "auto"):
+            transcription_type = "manual"
         
         if not file:
             return Response({"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
@@ -543,7 +557,7 @@ class AnonymousFileUploadView(APIView):
         if duration_seconds <= 0:
             return Response({"error": "Invalid duration"}, status=status.HTTP_400_BAD_REQUEST)
 
-        total_cost = _compute_cost_seconds(duration_seconds)
+        total_cost = _compute_cost_seconds(duration_seconds, transcription_type)
         payment_status = "Paid" if total_cost == Decimal("0.00") else "Unpaid"
 
         data = {
@@ -557,7 +571,8 @@ class AnonymousFileUploadView(APIView):
             "timestamp": request.data.get("timestamp"),
             "spelling": request.data.get("spelling"),
             "additional_info": request.data.get("instruction"),
-            "payment_status": payment_status
+            "payment_status": payment_status,
+            "transcription_type": transcription_type,
         }
         
         serializer = FileSerializer(data=data)
