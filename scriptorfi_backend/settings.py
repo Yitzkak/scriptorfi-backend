@@ -232,6 +232,11 @@ PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '')
 PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY', '')
 # Currency your Paystack account is configured for (NGN for standard Nigerian accounts, USD if international enabled)
 PAYSTACK_CURRENCY = os.getenv('PAYSTACK_CURRENCY', 'NGN')
+# Optional channel whitelist for Paystack checkout.
+# Comma-separated env format, e.g. "card,bank,ussd,bank_transfer,qr"
+PAYSTACK_CHANNELS = [
+    c.strip() for c in os.getenv('PAYSTACK_CHANNELS', 'card,bank,ussd,bank_transfer,qr').split(',') if c.strip()
+]
 
 # Transcription pricing
 TRANSCRIPTION_PRICE_PER_MINUTE = os.getenv("TRANSCRIPTION_PRICE_PER_MINUTE", "0.50")

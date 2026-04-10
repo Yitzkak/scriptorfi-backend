@@ -390,6 +390,11 @@ class CreatePaystackPaymentView(APIView):
             },
         }
 
+        # Explicitly request desired channels so supported USSD banks can appear.
+        channels = getattr(settings, 'PAYSTACK_CHANNELS', None)
+        if isinstance(channels, list) and channels:
+            payload["channels"] = channels
+
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json",
@@ -430,6 +435,8 @@ class CreatePaystackPaymentView(APIView):
                 "authorization_url": data.get("data", {}).get("authorization_url"),
                 "reference": data.get("data", {}).get("reference"),
                 "file_ids": [f.id for f in files],
+                "currency": paystack_currency,
+                "channels": payload.get("channels", []),
             },
             status=status.HTTP_200_OK,
         )
