@@ -56,6 +56,7 @@ class UploadedFile(models.Model):
     PAYMENT_STATUS_CHOICES = [
         ('Unpaid', 'Unpaid'),
         ('Pending', 'Pending'),
+        ('Under Review', 'Under Review'),
         ('Paid', 'Paid'),
         ('Failed', 'Failed'),
     ]

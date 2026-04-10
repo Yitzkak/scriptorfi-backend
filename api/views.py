@@ -144,6 +144,36 @@ class AdminMarkAsPaidView(APIView):
             return Response({"error": "File not found"}, status=404)
 
 
+## View for user to submit payment for review (manual PayPal transfer)
+class SubmitPaymentForReviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_ids = request.data.get('file_ids', [])
+        if not file_ids:
+            return Response({"error": "No file IDs provided"}, status=400)
+        
+        updated_files = []
+        for file_id in file_ids:
+            try:
+                uploaded_file = UploadedFile.objects.get(pk=file_id, user=request.user)
+                if uploaded_file.payment_status in ['Unpaid', 'Pending', 'Failed']:
+                    uploaded_file.payment_status = 'Under Review'
+                    uploaded_file.save(update_fields=['payment_status'])
+                    updated_files.append(file_id)
+            except UploadedFile.DoesNotExist:
+                continue
+        
+        if not updated_files:
+            return Response({"error": "No valid files found"}, status=404)
+        
+        return Response({
+            "message": "Payment submitted for review",
+            "file_ids": updated_files,
+            "payment_status": "Under Review"
+        }, status=200)
+
+
 ## Super Admin file list view
 class AdminFileListView(ListAPIView):
     permission_classes = [IsSuperAdmin]
