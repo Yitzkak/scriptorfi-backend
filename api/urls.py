@@ -6,7 +6,7 @@ from .views import (
     UpdateFileStatusView,
     FileUploadView,
     DeleteFileStatusView, SuperAdminLoginView,
-    AdminFileListView, get_notifications, mark_notification_as_read,
+    AdminFileListView, AdminMarkAsPaidView, get_notifications, mark_notification_as_read,
     UserProfileView, UpdateProfileView, UpdatePasswordView,
     AnonymousFileUploadView, ClaimUploadView,
     UserTranscriptionListView, TranscriptDetailView, TranscriptDownloadView, AdminUploadTranscriptView,
@@ -37,7 +37,8 @@ from .auto_transcribe import AutoTranscribeView, TestAutoTranscribeView
 urlpatterns = [
     path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
     path('superadmin/files/', AdminFileListView.as_view(), name='superadmin_file_list'),
-    path('superadmin/files/<int:pk>/status/', UpdateFileStatusView.as_view(), name='update_file_status'),      
+    path('superadmin/files/<int:pk>/status/', UpdateFileStatusView.as_view(), name='update_file_status'),
+    path('superadmin/files/<int:pk>/mark-paid/', AdminMarkAsPaidView.as_view(), name='admin_mark_as_paid'),
     path('users/register/', RegisterView.as_view(), name='register'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # Custom login
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

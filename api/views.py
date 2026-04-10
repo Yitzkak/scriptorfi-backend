@@ -126,6 +126,24 @@ class UpdateFileStatusView(APIView):
         except UploadedFile.DoesNotExist:
             return Response({"error": "File not found"}, status=404)
 
+
+## View for admin to mark file as paid
+class AdminMarkAsPaidView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, pk):
+        try:
+            uploaded_file = UploadedFile.objects.get(pk=pk)
+            uploaded_file.payment_status = 'Paid'
+            uploaded_file.save(update_fields=['payment_status'])
+            return Response({
+                "message": "File marked as paid",
+                "payment_status": uploaded_file.payment_status
+            }, status=200)
+        except UploadedFile.DoesNotExist:
+            return Response({"error": "File not found"}, status=404)
+
+
 ## Super Admin file list view
 class AdminFileListView(ListAPIView):
     permission_classes = [IsSuperAdmin]
@@ -174,6 +192,15 @@ class TranscriptDetailView(APIView):
 
     def get(self, request, file_id):
         uploaded_file = get_object_or_404(UploadedFile, id=file_id, user=request.user)
+        
+        # Check if file is paid - if not, return limited info
+        if uploaded_file.payment_status != 'Paid':
+            return Response({
+                "error": "Payment required to view full transcript",
+                "payment_required": True,
+                "preview": None  # No preview for unpaid
+            }, status=402)  # 402 Payment Required
+        
         transcript = getattr(uploaded_file, "transcript", None)
         if not transcript:
             return Response({"error": "Transcript not available"}, status=404)
@@ -203,6 +230,14 @@ class TranscriptDownloadView(APIView):
     def get(self, request, file_id):
         from django.http import HttpResponse
         uploaded_file = get_object_or_404(UploadedFile, id=file_id, user=request.user)
+        
+        # Check if file is paid - block download for unpaid files
+        if uploaded_file.payment_status != 'Paid':
+            return Response({
+                "error": "Payment required to download transcript",
+                "payment_required": True
+            }, status=402)  # 402 Payment Required
+        
         transcript = getattr(uploaded_file, "transcript", None)
         if not transcript:
             return Response({"error": "Transcript not available"}, status=404)
