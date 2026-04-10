@@ -237,6 +237,9 @@ PAYSTACK_CURRENCY = os.getenv('PAYSTACK_CURRENCY', 'NGN')
 PAYSTACK_CHANNELS = [
     c.strip() for c in os.getenv('PAYSTACK_CHANNELS', 'card,bank,ussd,bank_transfer,qr').split(',') if c.strip()
 ]
+# Fallback USD -> target currency rate used only when live FX providers fail.
+# Keep this updated in env for predictable Paystack NGN amounts.
+PAYSTACK_FX_FALLBACK_RATE = os.getenv('PAYSTACK_FX_FALLBACK_RATE', '1500')
 
 # Transcription pricing
 TRANSCRIPTION_PRICE_PER_MINUTE = os.getenv("TRANSCRIPTION_PRICE_PER_MINUTE", "0.50")

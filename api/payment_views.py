@@ -364,18 +364,34 @@ class CreatePaystackPaymentView(APIView):
         if paystack_currency == 'USD':
             # USD is supported on the account — send cents directly
             amount_smallest = int(total_amount_usd * 100)
+            fx_rate_used = Decimal('1')
         else:
-            # Fetch live exchange rate from USD to the target currency
-            try:
-                rate_response = requests.get(
-                    'https://api.exchangerate-api.com/v4/latest/USD',
-                    timeout=10,
-                )
-                rate_data = rate_response.json()
-                rate = Decimal(str(rate_data['rates'].get(paystack_currency, 1)))
-            except Exception as exc:
-                print(f"[Paystack] Exchange rate fetch failed: {exc}. Falling back to 1.")
-                rate = Decimal('1')
+            # Fetch live exchange rate from USD to the target currency.
+            # Never fall back to 1 for NGN-like currencies because it can produce invalidly low totals.
+            fallback_rate = Decimal(str(getattr(settings, 'PAYSTACK_FX_FALLBACK_RATE', '1500')))
+            rate = None
+            rate_sources = [
+                'https://api.exchangerate-api.com/v4/latest/USD',
+                'https://open.er-api.com/v6/latest/USD',
+            ]
+            for source in rate_sources:
+                try:
+                    rate_response = requests.get(source, timeout=10)
+                    rate_response.raise_for_status()
+                    rate_data = rate_response.json()
+                    source_rates = rate_data.get('rates', {})
+                    candidate = source_rates.get(paystack_currency)
+                    if candidate:
+                        rate = Decimal(str(candidate))
+                        break
+                except Exception as exc:
+                    print(f"[Paystack] Exchange rate fetch failed from {source}: {exc}")
+
+            if rate is None or rate <= 0:
+                print(f"[Paystack] Using fallback FX rate {fallback_rate} for {paystack_currency}")
+                rate = fallback_rate
+
+            fx_rate_used = rate
             converted = (total_amount_usd * rate).quantize(Decimal('0.01'))
             amount_smallest = int(converted * 100)  # e.g. NGN kobo, GHS pesewas
 
@@ -437,6 +453,8 @@ class CreatePaystackPaymentView(APIView):
                 "file_ids": [f.id for f in files],
                 "currency": paystack_currency,
                 "channels": payload.get("channels", []),
+                "amount_smallest": amount_smallest,
+                "fx_rate_used": str(fx_rate_used),
             },
             status=status.HTTP_200_OK,
         )
