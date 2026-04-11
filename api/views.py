@@ -97,7 +97,6 @@ class SuperAdminLoginView(APIView):
         
         ## Check if user is authenticated
         user = authenticate(username=email, password=password)
-        print("User object:", user)
         
         ## Check if user is a super admin user
         if user and user.is_super_admin:
@@ -253,8 +252,8 @@ class TranscriptDetailView(APIView):
                 # Save the extracted text for future requests
                 transcript.text = text_content
                 transcript.save(update_fields=['text'])
-            except Exception as e:
-                print(f"[TranscriptDetailView] Could not read file content: {e}")
+            except Exception:
+                pass
         
         serializer = TranscriptSerializer(transcript, context={'request': request})
         return Response(serializer.data)
@@ -317,9 +316,6 @@ class AdminUploadTranscriptView(APIView):
             if transcript_text:
                 transcript.text = transcript_text
             if transcript_file:
-                # Log before save
-                print(f"[AdminUploadTranscript] Saving file: {transcript_file.name}, size: {transcript_file.size}")
-                print(f"[AdminUploadTranscript] Storage backend: {default_storage.__class__.__name__}")
                 transcript.file = transcript_file
                 
                 # Also extract text content from the file if possible
@@ -333,20 +329,11 @@ class AdminUploadTranscriptView(APIView):
                         except UnicodeDecodeError:
                             text_content = file_content.decode('latin-1')
                         transcript.text = text_content
-                        print(f"[AdminUploadTranscript] Extracted text content, length: {len(text_content)}")
                         transcript_file.seek(0)  # Reset file position for storage
-                    except Exception as text_err:
-                        print(f"[AdminUploadTranscript] Could not extract text from file: {text_err}")
+                    except Exception:
+                        pass
                         
             transcript.save()
-            
-            # Log after save
-            if transcript.file:
-                print(f"[AdminUploadTranscript] Saved file path: {transcript.file.name}")
-                print(f"[AdminUploadTranscript] File URL: {transcript.file.url}")
-                # Verify file exists in storage
-                exists = default_storage.exists(transcript.file.name)
-                print(f"[AdminUploadTranscript] File exists in storage: {exists}")
 
             uploaded_file.status = "Completed"
             uploaded_file.save(update_fields=["status"])
@@ -355,9 +342,6 @@ class AdminUploadTranscriptView(APIView):
             serializer = TranscriptSerializer(transcript, context={'request': request})
             return Response(serializer.data, status=200)
         except Exception as e:
-            import traceback
-            print(f"[AdminUploadTranscript] ERROR: {e}")
-            print(traceback.format_exc())
             return Response({"error": str(e)}, status=500)
     
 ### Login for user
@@ -410,14 +394,12 @@ class FileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     
     def post(self, request, *args, **kwargs):
-        print(request.data)
         file = request.FILES.get('file')
         transcription_type = request.data.get("transcription_type", "manual")
         if transcription_type not in ("manual", "auto"):
             transcription_type = "manual"
         
         if not file:
-            print("File not right", file)
             return Response({"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
 
         is_valid, error_message = _validate_upload(file)
@@ -524,7 +506,6 @@ class UpdatePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request):
-        print("data:", request.data)
         serializer = UpdatePasswordSerializer(data=request.data)
         if serializer.is_valid():
             if not request.user.check_password(serializer.validated_data['old_password']):
@@ -832,154 +813,6 @@ class CleanupOrphanedTranscriptsView(APIView):
             "fixed_count": len(fixed),
             "fixed_files": fixed,
             "message": f"Cleared {len(fixed)} orphaned file references" if fixed else "No orphaned files to fix"
-        })
-
-
-class DebugTranscriptsView(APIView):
-    """
-    GET /api/debug-transcripts/
-    Show ALL transcript records and what the API returns for them.
-    """
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        from api.models import Transcript
-        all_transcripts = Transcript.objects.select_related('uploaded_file').all()
-        
-        results = []
-        for t in all_transcripts:
-            # Raw database values
-            raw_file = t.file.name if t.file else None
-            
-            # What serializer returns
-            serializer = TranscriptSerializer(t, context={'request': request})
-            serialized_file = serializer.data.get('file')
-            
-            results.append({
-                "transcript_id": t.id,
-                "uploaded_file_id": t.uploaded_file.id,
-                "uploaded_file_name": t.uploaded_file.name,
-                "has_text": bool(t.text),
-                "raw_db_file": raw_file,
-                "serialized_file_url": serialized_file,
-            })
-        
-        return Response({
-            "total_transcripts": len(results),
-            "transcripts": results
-        })
-
-
-class TestGCSUploadView(APIView):
-    """
-    POST /api/test-gcs-upload/
-    Test file upload to GCS storage directly. Upload a file to verify GCS is working.
-    """
-    permission_classes = [AllowAny]
-    parser_classes = (MultiPartParser, FormParser)
-    
-    def get(self, request):
-        """Show current storage configuration."""
-        storage_class = default_storage.__class__.__name__
-        storage_module = default_storage.__class__.__module__
-        
-        # Try to get bucket name if using GCS
-        bucket_name = None
-        if hasattr(default_storage, 'bucket_name'):
-            bucket_name = default_storage.bucket_name
-        elif hasattr(default_storage, 'bucket'):
-            bucket_name = getattr(default_storage.bucket, 'name', None)
-        
-        return Response({
-            "storage_class": storage_class,
-            "storage_module": storage_module,
-            "bucket_name": bucket_name,
-            "is_gcs": 'gcloud' in storage_module.lower() or 'gcs' in storage_module.lower(),
-        })
-    
-    def post(self, request):
-        """Upload a test file and verify it exists in storage."""
-        test_file = request.FILES.get("file")
-        if not test_file:
-            return Response({"error": "No file provided. Send a file with key 'file'"}, status=400)
-        
-        try:
-            # Save the file using default storage
-            file_name = f"test_uploads/{test_file.name}"
-            saved_path = default_storage.save(file_name, test_file)
-            
-            # Verify it exists
-            exists = default_storage.exists(saved_path)
-            
-            # Get URL
-            url = default_storage.url(saved_path)
-            
-            # Get size
-            size = default_storage.size(saved_path) if exists else None
-            
-            return Response({
-                "success": True,
-                "original_name": test_file.name,
-                "saved_path": saved_path,
-                "exists_in_storage": exists,
-                "url": url,
-                "size": size,
-                "storage_class": default_storage.__class__.__name__,
-            })
-        except Exception as e:
-            import traceback
-            return Response({
-                "success": False,
-                "error": str(e),
-                "traceback": traceback.format_exc(),
-            }, status=500)
-
-
-class DebugAutoTranscribeView(APIView):
-    """
-    GET /api/debug-auto-transcribe/
-    Debug endpoint to check auto-transcription files status.
-    """
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        # Find all files with transcription_type='auto' or payment_status='Paid'
-        auto_files = UploadedFile.objects.filter(transcription_type='auto').order_by('-date_uploaded')[:20]
-        paid_files = UploadedFile.objects.filter(payment_status='Paid').order_by('-date_uploaded')[:20]
-        processing_files = UploadedFile.objects.filter(status='Processing').order_by('-date_uploaded')[:20]
-        
-        def file_info(f):
-            has_audio = bool(f.file)
-            audio_url = None
-            audio_exists = False
-            if has_audio:
-                try:
-                    audio_url = f.file.url
-                    audio_exists = default_storage.exists(f.file.name)
-                except Exception as e:
-                    audio_url = f"Error: {e}"
-            
-            transcript = getattr(f, 'transcript', None)
-            return {
-                "id": f.id,
-                "name": f.name,
-                "status": f.status,
-                "payment_status": f.payment_status,
-                "transcription_type": f.transcription_type,
-                "has_audio_file": has_audio,
-                "audio_file_name": f.file.name if has_audio else None,
-                "audio_exists_in_storage": audio_exists,
-                "audio_url": audio_url,
-                "has_transcript": transcript is not None,
-                "transcript_has_text": bool(getattr(transcript, 'text', None)) if transcript else False,
-                "transcript_has_file": bool(getattr(transcript, 'file', None)) if transcript else False,
-                "date_uploaded": str(f.date_uploaded),
-            }
-        
-        return Response({
-            "auto_transcription_files": [file_info(f) for f in auto_files],
-            "paid_files": [file_info(f) for f in paid_files],
-            "processing_files": [file_info(f) for f in processing_files],
         })
 
 

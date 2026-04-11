@@ -16,9 +16,6 @@ from .views import (
     UpdateFileTranscriptionTypeView,
     StorageDiagnosticView,
     CleanupOrphanedTranscriptsView,
-    DebugTranscriptsView,
-    TestGCSUploadView,
-    DebugAutoTranscribeView,
 )
 from .payment_views import (
     CreatePaymentView,
@@ -32,7 +29,7 @@ from .payment_views import (
     PayPalWebhookView
 )
 from .chunked_upload import ChunkedUploadView
-from .auto_transcribe import AutoTranscribeView, TestAutoTranscribeView
+from .auto_transcribe import AutoTranscribeView
 
 urlpatterns = [
     path('superadmin/login/', SuperAdminLoginView.as_view(), name='superadmin_login'),
@@ -75,11 +72,7 @@ urlpatterns = [
     path('payment/paypal/webhook/', PayPalWebhookView.as_view(), name='paypal_webhook'),
     path('files/upload/chunked/', ChunkedUploadView.as_view(), name='chunked_upload'),
     path('files/<int:file_id>/auto-transcribe/', AutoTranscribeView.as_view(), name='auto_transcribe'),
-    path('test-auto-transcribe/<int:file_id>/', TestAutoTranscribeView.as_view(), name='test_auto_transcribe'),
     path('files/<int:file_id>/transcription-type/', UpdateFileTranscriptionTypeView.as_view(), name='update_transcription_type'),
     path('storage-diagnostic/', StorageDiagnosticView.as_view(), name='storage_diagnostic'),
     path('cleanup-transcripts/', CleanupOrphanedTranscriptsView.as_view(), name='cleanup_transcripts'),
-    path('debug-transcripts/', DebugTranscriptsView.as_view(), name='debug_transcripts'),
-    path('test-gcs-upload/', TestGCSUploadView.as_view(), name='test_gcs_upload'),
-    path('debug-auto-transcribe/', DebugAutoTranscribeView.as_view(), name='debug_auto_transcribe'),
 ]

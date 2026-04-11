@@ -41,8 +41,8 @@ class ChunkedUploadView(APIView):
                 metadata_path = os.path.join(temp_dir, 'metadata.json')
                 with open(metadata_path, 'w') as f:
                     f.write(metadata_str)
-            except Exception as e:
-                print(f"Error saving metadata: {e}")
+            except Exception:
+                pass
 
         # Check if all chunks are present
         chunk_files = [f for f in os.listdir(temp_dir) if f.startswith('chunk_')]
@@ -63,8 +63,8 @@ class ChunkedUploadView(APIView):
                 try:
                     with open(metadata_path, 'r') as f:
                         metadata = json.loads(f.read())
-                except Exception as e:
-                    print(f"Error loading metadata: {e}")
+                except Exception:
+                    pass
             
             # Get file name and extension from metadata or use defaults
             file_name = metadata.get('name', f'upload_{upload_id}')

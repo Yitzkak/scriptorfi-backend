@@ -385,10 +385,9 @@ class CreatePaystackPaymentView(APIView):
                         rate = Decimal(str(candidate))
                         break
                 except Exception as exc:
-                    print(f"[Paystack] Exchange rate fetch failed from {source}: {exc}")
+                    pass
 
             if rate is None or rate <= 0:
-                print(f"[Paystack] Using fallback FX rate {fallback_rate} for {paystack_currency}")
                 rate = fallback_rate
 
             fx_rate_used = rate
@@ -422,8 +421,6 @@ class CreatePaystackPaymentView(APIView):
             headers=headers,
             timeout=20,
         )
-
-        print(f"[Paystack init] status={response.status_code} body={response.text}")
 
         if response.status_code != 200:
             try:
