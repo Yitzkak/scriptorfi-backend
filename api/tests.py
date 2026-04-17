@@ -1,8 +1,10 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
 from rest_framework.test import APIClient
 from django.conf import settings
+from django.test.utils import override_settings
 from decimal import Decimal
 from .models import UploadedFile, CustomUser, Transcript, Notification
 
@@ -160,5 +162,71 @@ class SuperAdminManagementTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertFalse(Notification.objects.filter(id=notification.id).exists())
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class AdminEmailAlertTests(TestCase):
+	def setUp(self):
+		self.client = APIClient()
+		self.staff_user = CustomUser.objects.create_user(
+			username="staffuser",
+			email="staff@example.com",
+			password="testpass123",
+			first_name="Staff",
+			last_name="Member",
+			is_staff=True,
+		)
+
+	def _dummy_audio(self, content=b"fake-audio"):
+		return SimpleUploadedFile("test.mp3", content, content_type="audio/mpeg")
+
+	def test_signup_sends_admin_email_alert(self):
+		mail.outbox.clear()
+		response = self.client.post(
+			"/api/users/register/",
+			{
+				"first_name": "New",
+				"last_name": "User",
+				"email": "newuser@example.com",
+				"country": "US",
+				"password": "strongpass123",
+				"confirm_password": "strongpass123",
+			},
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn("New user signup", mail.outbox[0].subject)
+		self.assertIn("staff@example.com", mail.outbox[0].to)
+
+	def test_upload_sends_admin_email_alert(self):
+		mail.outbox.clear()
+		uploader = CustomUser.objects.create_user(
+			username="uploader",
+			email="uploader@example.com",
+			password="testpass123",
+			first_name="Upload",
+			last_name="User",
+		)
+		self.client.force_authenticate(user=uploader)
+
+		response = self.client.post(
+			"/api/files/upload/",
+			{
+				"file": self._dummy_audio(),
+				"size": "120",
+				"verbatim": "No",
+				"rush_order": "No",
+				"timestamp": "Yes",
+				"spelling": "US",
+			},
+			format="multipart",
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn("New file uploaded", mail.outbox[0].subject)
+		self.assertIn("staff@example.com", mail.outbox[0].to)
 
 # Create your tests here.

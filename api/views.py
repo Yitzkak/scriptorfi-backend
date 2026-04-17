@@ -39,6 +39,43 @@ from django.db.models.functions import Coalesce
 
 
 ##### Functions for sending notifications
+def _get_admin_alert_recipients():
+    recipients = list(
+        CustomUser.objects.filter(is_staff=True)
+        .exclude(email__isnull=True)
+        .exclude(email__exact="")
+        .values_list("email", flat=True)
+        .distinct()
+    )
+
+    fallback = getattr(settings, "SUPPORT_EMAIL", "")
+    if fallback and fallback not in recipients:
+        recipients.append(fallback)
+
+    return recipients
+
+
+def _send_admin_event_email(subject, body):
+    recipients = _get_admin_alert_recipients()
+    if not recipients:
+        return
+
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None) or getattr(settings, "SUPPORT_EMAIL", None)
+    if not from_email:
+        return
+
+    try:
+        EmailMessage(
+            subject=subject,
+            body=body,
+            from_email=from_email,
+            to=recipients,
+        ).send(fail_silently=True)
+    except Exception:
+        # Avoid blocking signup/upload if email delivery fails.
+        pass
+
+
 def create_notification_for_admins(file, user):
     admins = CustomUser.objects.filter(is_staff=True)
     for admin in admins:
@@ -46,6 +83,14 @@ def create_notification_for_admins(file, user):
             user=admin,
             message=f"A new file '{file.name}' has been uploaded by {user.username}."
         )
+    _send_admin_event_email(
+        subject="Scriptorfi: New file uploaded",
+        body=(
+            "A new file has been uploaded.\n\n"
+            f"User: {user.email or user.username}\n"
+            f"File: {file.name}\n"
+        ),
+    )
         
 def create_notification_for_customer(file, status):
     if not file.user:
@@ -443,6 +488,15 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()  # Create user instance
+            _send_admin_event_email(
+                subject="Scriptorfi: New user signup",
+                body=(
+                    "A new user has signed up.\n\n"
+                    f"Email: {user.email}\n"
+                    f"Name: {user.first_name} {user.last_name}\n"
+                    f"Country: {user.country or 'Not provided'}\n"
+                ),
+            )
             return Response({"message": "Registration successful. Please check your email for confirmation."}, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
