@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 from django.conf import settings
 from decimal import Decimal
-from .models import UploadedFile, CustomUser, Transcript
+from .models import UploadedFile, CustomUser, Transcript, Notification
 
 class UploadAndPaymentFlowTests(TestCase):
 	def setUp(self):
@@ -149,5 +149,16 @@ class SuperAdminManagementTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertFalse(CustomUser.objects.filter(id=self.user.id).exists())
 		self.assertFalse(UploadedFile.objects.filter(id=file_obj.id).exists())
+
+	def test_superadmin_can_delete_notification(self):
+		notification = Notification.objects.create(
+			user=self.super_admin,
+			message="Test admin notification"
+		)
+
+		response = self.client.delete(f"/api/superadmin/notifications/{notification.id}/delete/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertFalse(Notification.objects.filter(id=notification.id).exists())
 
 # Create your tests here.

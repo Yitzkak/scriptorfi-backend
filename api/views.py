@@ -10,6 +10,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     AdminUserSerializer,
+    AdminNotificationSerializer,
 )
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -237,6 +238,21 @@ class AdminDeleteUserView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class AdminNotificationListView(ListAPIView):
+    permission_classes = [IsSuperAdmin]
+    serializer_class = AdminNotificationSerializer
+    queryset = Notification.objects.select_related('user').order_by('-created_at')
+
+
+class AdminDeleteNotificationView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def delete(self, request, pk):
+        notification = get_object_or_404(Notification, pk=pk)
+        notification.delete()
+        return Response({"message": "Notification deleted successfully"}, status=status.HTTP_200_OK)
 
 
 class UpdateFileTranscriptionTypeView(APIView):

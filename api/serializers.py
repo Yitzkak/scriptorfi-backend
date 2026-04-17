@@ -121,6 +121,14 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id', 'user', 'message', 'created_at', 'read']
 
+
+class AdminNotificationSerializer(serializers.ModelSerializer):
+    user = CustomUserSerializer(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'user', 'message', 'created_at', 'read']
+
 ## Update User Serializer
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:

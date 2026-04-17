@@ -7,6 +7,7 @@ from .views import (
     FileUploadView,
     DeleteFileStatusView, SuperAdminLoginView,
     AdminFileListView, AdminUserListView, AdminDeleteFileView, AdminDeleteUserView,
+    AdminNotificationListView, AdminDeleteNotificationView,
     AdminMarkAsPaidView, SubmitPaymentForReviewView, get_notifications, mark_notification_as_read,
     UserProfileView, UpdateProfileView, UpdatePasswordView,
     AnonymousFileUploadView, ClaimUploadView,
@@ -40,6 +41,8 @@ urlpatterns = [
     path('superadmin/files/<int:pk>/mark-paid/', AdminMarkAsPaidView.as_view(), name='admin_mark_as_paid'),
     path('superadmin/users/', AdminUserListView.as_view(), name='superadmin_user_list'),
     path('superadmin/users/<int:user_id>/delete/', AdminDeleteUserView.as_view(), name='superadmin_delete_user'),
+    path('superadmin/notifications/', AdminNotificationListView.as_view(), name='superadmin_notification_list'),
+    path('superadmin/notifications/<int:pk>/delete/', AdminDeleteNotificationView.as_view(), name='superadmin_delete_notification'),
     path('users/register/', RegisterView.as_view(), name='register'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # Custom login
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
