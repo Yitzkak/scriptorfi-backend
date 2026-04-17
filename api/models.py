@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 # Custom User Model
 class CustomUser(AbstractUser):
@@ -101,3 +103,28 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.message[:30]}"
+
+
+def _delete_storage_file(field_file):
+    if not field_file or not getattr(field_file, "name", None):
+        return
+
+    storage = getattr(field_file, "storage", None)
+    if not storage:
+        return
+
+    try:
+        if storage.exists(field_file.name):
+            storage.delete(field_file.name)
+    except Exception:
+        pass
+
+
+@receiver(post_delete, sender=UploadedFile)
+def delete_uploaded_file_blob(sender, instance, **kwargs):
+    _delete_storage_file(instance.file)
+
+
+@receiver(post_delete, sender=Transcript)
+def delete_transcript_file_blob(sender, instance, **kwargs):
+    _delete_storage_file(instance.file)

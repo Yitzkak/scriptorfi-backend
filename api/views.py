@@ -8,7 +8,8 @@ from .serializers import (
     TranscriptSerializer,
     ContactSupportSerializer,
     PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer
+    PasswordResetConfirmSerializer,
+    AdminUserSerializer,
 )
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -32,6 +33,8 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import get_user_model
+from django.db.models import Count, Sum, Q, Value, DecimalField
+from django.db.models.functions import Coalesce
 
 
 ##### Functions for sending notifications
@@ -186,6 +189,54 @@ class AdminFileListView(ListAPIView):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+
+
+class AdminUserListView(ListAPIView):
+    permission_classes = [IsSuperAdmin]
+    serializer_class = AdminUserSerializer
+
+    def get_queryset(self):
+        return CustomUser.objects.annotate(
+            file_count=Count('uploaded_files', distinct=True),
+            pending_files=Count('uploaded_files', filter=~Q(uploaded_files__status='Completed'), distinct=True),
+            total_spend=Coalesce(
+                Sum('uploaded_files__total_cost'),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+        ).order_by('-date_joined', '-id')
+
+
+class AdminDeleteFileView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def delete(self, request, pk):
+        uploaded_file = get_object_or_404(UploadedFile, pk=pk)
+        uploaded_file.delete()
+        return Response({"message": "File deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class AdminDeleteUserView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def delete(self, request, user_id):
+        target_user = get_object_or_404(CustomUser, pk=user_id)
+
+        if target_user.pk == request.user.pk:
+            return Response({"error": "You cannot delete your own account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if target_user.is_super_admin and CustomUser.objects.filter(is_super_admin=True).count() <= 1:
+            return Response({"error": "You cannot delete the last super admin account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted_file_count = target_user.uploaded_files.count()
+        target_user.delete()
+        return Response(
+            {
+                "message": "User deleted successfully",
+                "deleted_file_count": deleted_file_count,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class UpdateFileTranscriptionTypeView(APIView):
@@ -458,8 +509,7 @@ class DeleteFileStatusView(APIView):
     permission_classes = [IsAuthenticated]
     def delete(self, request, pk, *args, **kwargs):
         file = get_object_or_404(UploadedFile, pk=pk, user=request.user)
-        file.file.delete()  # Delete the actual file from storage
-        file.delete()  # Delete the database record
+        file.delete()
         return Response({"message": "File deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     
 ## Notification View

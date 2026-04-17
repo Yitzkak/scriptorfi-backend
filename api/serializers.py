@@ -14,6 +14,27 @@ class CustomUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'email', 'username' ]
 
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    file_count = serializers.IntegerField(read_only=True)
+    pending_files = serializers.IntegerField(read_only=True)
+    total_spend = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id',
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'is_staff',
+            'is_super_admin',
+            'file_count',
+            'pending_files',
+            'total_spend',
+        ]
+
 ## Register user serilizer
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
