@@ -36,6 +36,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, Q, Value, DecimalField
 from django.db.models.functions import Coalesce
+import threading
 
 
 ##### Functions for sending notifications
@@ -83,14 +84,18 @@ def create_notification_for_admins(file, user):
             user=admin,
             message=f"A new file '{file.name}' has been uploaded by {user.username}."
         )
-    _send_admin_event_email(
-        subject="Scriptorfi: New file uploaded",
-        body=(
-            "A new file has been uploaded.\n\n"
-            f"User: {user.email or user.username}\n"
-            f"File: {file.name}\n"
-        ),
-    )
+    threading.Thread(
+        target=_send_admin_event_email,
+        kwargs={
+            "subject": "Scriptorfi: New file uploaded",
+            "body": (
+                "A new file has been uploaded.\n\n"
+                f"User: {user.email or user.username}\n"
+                f"File: {file.name}\n"
+            ),
+        },
+        daemon=True,
+    ).start()
         
 def create_notification_for_customer(file, status):
     if not file.user:
@@ -488,15 +493,19 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()  # Create user instance
-            _send_admin_event_email(
-                subject="Scriptorfi: New user signup",
-                body=(
-                    "A new user has signed up.\n\n"
-                    f"Email: {user.email}\n"
-                    f"Name: {user.first_name} {user.last_name}\n"
-                    f"Country: {user.country or 'Not provided'}\n"
-                ),
-            )
+            threading.Thread(
+                target=_send_admin_event_email,
+                kwargs={
+                    "subject": "Scriptorfi: New user signup",
+                    "body": (
+                        "A new user has signed up.\n\n"
+                        f"Email: {user.email}\n"
+                        f"Name: {user.first_name} {user.last_name}\n"
+                        f"Country: {user.country or 'Not provided'}\n"
+                    ),
+                },
+                daemon=True,
+            ).start()
             return Response({"message": "Registration successful. Please check your email for confirmation."}, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
