@@ -37,6 +37,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 ## Register user serilizer
 class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, min_length=8)
 
@@ -49,8 +50,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({"password": "Passwords do not match."})
         
-        # Ensure the email is unique
-        if CustomUser.objects.filter(email=data['email']).exists():
+        # Ensure the email is unique (case-insensitive)
+        email = data.get('email', '')
+        if email and CustomUser.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError({"email": "A user with this email already exists."})
         
         return data
@@ -72,7 +74,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
-            country=validated_data['country']
+            country=validated_data.get('country', '')
         )
         return user
 
